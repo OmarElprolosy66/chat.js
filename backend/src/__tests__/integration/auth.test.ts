@@ -53,4 +53,58 @@ describe('AuthController - Integration Tests', () => {
             expect(response.body.message).toContain('Email already in use');
         });
     });
+
+    describe('POST /api/v1/auth/login', () => {
+        const testUser = {
+            username: 'login_test_user',
+            email: 'login@test.com',
+            password: 'password123_strong',
+        };
+
+        // Create the user before testing login
+        beforeAll(async () => {
+            await request(app)
+                .post('/api/v1/auth/register')
+                .send(testUser);
+        });
+
+        it('should log in successfully with correct credentials', async () => {
+            const response = await request(app)
+                .post('/api/v1/auth/login')
+                .send({
+                    email: testUser.email,
+                    password: testUser.password,
+                });
+
+            expect(response.status).toBe(201);
+            expect(response.body).toHaveProperty('user');
+            expect(response.body).toHaveProperty('token');
+            expect(response.body.user.email).toBe(testUser.email);
+            expect(response.body.user).not.toHaveProperty('password');
+        });
+
+        it('should fail to log in with an incorrect password', async () => {
+            const response = await request(app)
+                .post('/api/v1/auth/login')
+                .send({
+                    email: testUser.email,
+                    password: 'wrong_password',
+                });
+
+            expect(response.status).toBe(401);
+            expect(response.body.message).toContain('Invalid credentials');
+        });
+
+        it('should fail to log in with a non-existent email', async () => {
+            const response = await request(app)
+                .post('/api/v1/auth/login')
+                .send({
+                    email: 'doesnotexist@test.com',
+                    password: testUser.password,
+                });
+
+            expect(response.status).toBe(404);
+            expect(response.body.message).toContain('User not found');
+        });
+    });
 });

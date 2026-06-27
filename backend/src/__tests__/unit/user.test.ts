@@ -44,11 +44,61 @@ describe('UserService - Unit Tests', () => {
         const result = await userService.createUser(userDto);
 
         // --- Assert ---
-        // Check that bcrypt.hash was called with the correct password
         expect(bcrypt.hash).toHaveBeenCalledWith(userDto.password, 10);
-        // Check that the repository's create method was called with the hashed password
         expect(mockUserRepo.create).toHaveBeenCalledWith({ ...userDto, password: hashedPassword });
-        // Check that the service returned the user from the repository
         expect(result).toEqual(createdUser);
+    });
+
+    it('should get a user by ID', async () => {
+        const userId = 'user-123';
+        const mockUser = { id: userId, username: 'testuser', email: 'test@example.com', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+        vi.spyOn(mockUserRepo, 'findById').mockResolvedValue(mockUser);
+
+        const result = await userService.getUserById(userId);
+
+        expect(mockUserRepo.findById).toHaveBeenCalledWith(userId);
+        expect(result).toEqual(mockUser);
+    });
+
+    it('should return null if user is not found by ID', async () => {
+        const userId = 'user-not-found';
+        vi.spyOn(mockUserRepo, 'findById').mockResolvedValue(null);
+
+        const result = await userService.getUserById(userId);
+
+        expect(mockUserRepo.findById).toHaveBeenCalledWith(userId);
+        expect(result).toBeNull();
+    });
+
+    it('should get a user by email', async () => {
+        const email = 'test@example.com';
+        const mockAuthUser: AuthDTO = { id: 'user-123', email, password: 'hashed_password' };
+        vi.spyOn(mockUserRepo, 'findByEmail').mockResolvedValue(mockAuthUser);
+
+        const result = await userService.getByEmail(email);
+
+        expect(mockUserRepo.findByEmail).toHaveBeenCalledWith(email);
+        expect(result).toEqual(mockAuthUser);
+    });
+
+    it('should update user fields successfully', async () => {
+        const userId = 'user-123';
+        const updateDto = { username: 'updateduser' };
+        const mockUpdatedUser = { id: userId, username: 'updateduser', email: 'test@example.com', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+        vi.spyOn(mockUserRepo, 'update').mockResolvedValue(mockUpdatedUser);
+
+        const result = await userService.updateUser(userId, updateDto);
+
+        expect(mockUserRepo.update).toHaveBeenCalledWith(userId, updateDto);
+        expect(result).toEqual(mockUpdatedUser);
+    });
+
+    it('should delete a user by ID', async () => {
+        const userId = 'user-123';
+        vi.spyOn(mockUserRepo, 'delete').mockResolvedValue(undefined);
+
+        await userService.deleteUser(userId);
+
+        expect(mockUserRepo.delete).toHaveBeenCalledWith(userId);
     });
 });

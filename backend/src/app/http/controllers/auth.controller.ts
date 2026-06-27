@@ -22,8 +22,9 @@ export class AuthController {
             );
 
             // TODO: refresh token!
+            const { password, ...cleanUser } = user;
     
-            return res.status(201).json({ user, token });
+            return res.status(201).json({ user: cleanUser, token });
         } catch (err) { next(err) }
     }
 
@@ -43,8 +44,9 @@ export class AuthController {
             );
 
             // TODO: refresh token!
+            const { password, ...cleanUser } = user;
     
-            return res.status(201).json({ user, token });
+            return res.status(201).json({ user: cleanUser, token });
         } catch (err) { next(err) }
     }
 

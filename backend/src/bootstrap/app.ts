@@ -9,6 +9,7 @@ import morgan from "morgan";
 import { makeContainer } from './dic';
 
 import routes from "../routes/router";
+import { err } from "../app/http/middlewares";
 
 
 export const container = makeContainer();
@@ -32,5 +33,6 @@ app.use((req: any, _res, next) => {
 
 
 app.use("/api", routes);
+app.use(err);
 
-export default app;
+export default app;

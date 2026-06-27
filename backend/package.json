@@ -9,10 +9,10 @@
     "db:reset": "tsx ./src/db/db-reset.ts",
     "db:migrate": "tsx ./src/drizzle/migrate.ts",
     "build": "tsc",
-    "test": "vitest",
-    "test:unit": "vitest --dir src/__tests__/unit",
-    "test:integration": "vitest --dir src/__tests__/integration",
-    "test:watch": "vitest --watch"
+    "test": "vitest run",
+    "test:unit": "vitest run src/__tests__/unit",
+    "test:integration": "vitest run src/__tests__/integration",
+    "test:watch": "vitest"
   },
   "keywords": [],
   "author": "",
@@ -36,6 +36,7 @@
     "zod": "^4.0.17"
   },
   "devDependencies": {
+    "@rollup/rollup-win32-x64-msvc": "^4.62.2",
     "@types/bcrypt": "^6.0.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
