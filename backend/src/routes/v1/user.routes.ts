@@ -15,6 +15,10 @@ declare global {
 
 export const router = Router();
 
+router.get('/search',
+    resolveController('userController'),
+    (req: Request, res: Response, next: NextFunction) => req.userController.getByEmail(req, res, next));
+
 router.use('/:id', isOwnerGuard);
 router.get('/:id',
     resolveController('userController'),

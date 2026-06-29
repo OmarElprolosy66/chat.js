@@ -11,6 +11,10 @@ export class MessageService {
     async updateMessage(dto: EditMessageDTO): Promise<ResponseMessageDTO> {
         return await this.messageRepo.update(dto);
     }
+
+    async getConversation(user1Id: string, user2Id: string): Promise<ResponseMessageDTO[]> {
+        return await this.messageRepo.getConversation(user1Id, user2Id);
+    }
 }
 
 export default MessageService;

@@ -31,4 +31,15 @@ export class UserController {
             return res.sendStatus(204);
         } catch (err) { next(err); }
     }
+
+    async getByEmail(req: Request, res: Response, next: NextFunction) {
+        try {
+            const email = req.query.email as string;
+            if (!email) return res.status(400).json({ message: "Email query parameter is required" });
+            const user = await this.userService.getByEmail(email);
+            if (!user) return res.status(404).json({ message: "User not found" });
+            const { password, ...cleanUser } = user;
+            return res.json(cleanUser);
+        } catch (err) { next(err); }
+    }
 }

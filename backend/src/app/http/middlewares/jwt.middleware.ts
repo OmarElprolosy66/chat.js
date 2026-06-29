@@ -21,7 +21,6 @@ export const authenticateJWT = async (req: Request, res: Response, next: NextFun
     const token = authHeader.split(" ")[1];
     try {
         req.user = verifyToken(token);
-        console.log(req.user);
         return next();
     } catch (err) {
         return res.status(401).json({ message: "Invalid or expired token" });

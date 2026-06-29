@@ -25,11 +25,11 @@ export class WebSocketController {
     }
 
     private onSocketPreError(e: Error) {
-        console.log(e);
+        console.error(e);
     }
 
     private onSocketPostError(e: Error) {
-        console.log(e);
+        console.error(e);
     }
 
     private validateToken(token: string, req: any): boolean {
@@ -50,7 +50,7 @@ export class WebSocketController {
             const token = searchParams.get('token');
             
             if (!token || !this.validateToken(token, req)) { // Check for token and validate it
-                console.log('WebSocket connection rejected: Invalid or missing token.');
+                console.warn('WebSocket connection rejected: Invalid or missing token.');
                 socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
                 socket.destroy();
                 return;
@@ -71,8 +71,6 @@ export class WebSocketController {
     
         const userId = req.user.user_id;
         this.connectionManager.add(userId, ws);
-    
-        console.log(`User ${userId} connected`);
         
         const onMessage = async (data: any) => {
             try {

@@ -36,6 +36,7 @@ class UserRepository implements IUserRepository {
     async findByEmail(email: string): Promise<AuthDTO | null> {
         const row = await db.select({
             id: userSchema.id,
+            username: userSchema.username,
             email: userSchema.email,
             password: userSchema.password
         }).from(userSchema)

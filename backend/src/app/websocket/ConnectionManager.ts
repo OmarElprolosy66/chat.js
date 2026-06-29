@@ -42,7 +42,6 @@ export class ConnectionManager {
     broadcastToUser(userSockets: WS[], message: any) {
         for (const socket of userSockets) {
             if (socket.readyState === socket.OPEN) {
-                console.log(message);
                 socket.send(JSON.stringify(message));
                 // TODO: handel sending messages that was sent when user was offline
             }

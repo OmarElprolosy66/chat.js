@@ -6,4 +6,4 @@ import {
 
 export type CreateMessageDTO = z.infer<typeof CreateMessageSchema>;
 export type EditMessageDTO   = z.infer<typeof EditMessageSchema>;
-export type ResponseMessageDTO = { id: string } & CreateMessageDTO;
+export type ResponseMessageDTO = { id: string; createdAt: string } & CreateMessageDTO;

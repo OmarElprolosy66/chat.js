@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "main": "dist/index.js",
   "scripts": {
-    "start": "nodemon src/index.ts",
+    "start:dev": "nodemon src/index.ts",
+    "start:prod": "node dist/index.js",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:reset": "tsx ./src/db/db-reset.ts",
