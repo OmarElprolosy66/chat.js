@@ -542,7 +542,7 @@ export const ChatWorkspace: React.FC = () => {
         {activePartner ? (
           <>
             {/* Chat Header */}
-            <div style={{
+            <div className="chat-header" style={{
               padding: '16px 24px',
               borderBottom: '1px solid var(--panel-border)',
               display: 'flex',
@@ -570,30 +570,29 @@ export const ChatWorkspace: React.FC = () => {
                 </button>
                 <div>
                   <h3 style={{ fontSize: '16px', fontWeight: '700' }}>{activePartner.username}</h3>
-                  <span style={{ fontSize: '12px', color: 'var(--slate-400)' }}>{activePartner.email}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--slate-400)' }}>{activePartner.email}</span>
+                    <button 
+                      onClick={handleCopyPartnerId}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: copiedPartnerEmail ? 'var(--success)' : 'var(--slate-400)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: '2px',
+                        borderRadius: '4px',
+                        transition: 'background 0.2s'
+                      }}
+                      title="Copy Email"
+                    >
+                      {copiedPartnerEmail ? <Check size={12} style={{ color: 'var(--success)' }} /> : <Copy size={12} />}
+                    </button>
+                  </div>
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div 
-                  onClick={handleCopyPartnerId}
-                  style={{
-                    backgroundColor: 'rgba(255,255,255,0.03)',
-                    border: '1px solid var(--panel-border)',
-                    borderRadius: '6px',
-                    padding: '6px 12px',
-                    fontSize: '11px',
-                    color: 'var(--slate-400)',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    fontFamily: 'monospace'
-                  }}
-                  title="Copy Email"
-                >
-                  <span>Email: {activePartner.email}</span>
-                  {copiedPartnerEmail ? <Check size={12} style={{ color: 'var(--success)' }} /> : <Copy size={12} />}
-                </div>
                 <button
                   onClick={() => handleBlock(activePartner.id)}
                   className="glass-button"
@@ -658,7 +657,7 @@ export const ChatWorkspace: React.FC = () => {
             })()}
 
             {/* Message Stream */}
-            <div style={{
+            <div className="message-stream" style={{
               flex: 1,
               overflowY: 'auto',
               padding: '24px',
@@ -724,7 +723,7 @@ export const ChatWorkspace: React.FC = () => {
             </div>
 
             {/* Composer */}
-            <form onSubmit={handleSendMessage} style={{
+            <form className="chat-composer" onSubmit={handleSendMessage} style={{
               padding: '20px 24px',
               borderTop: '1px solid var(--panel-border)',
               display: 'flex',
