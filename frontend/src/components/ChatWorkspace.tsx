@@ -52,6 +52,35 @@ export const ChatWorkspace: React.FC = () => {
   const [settingsError, setSettingsError] = useState<string | null>(null);
   const [settingsSuccess, setSettingsSuccess] = useState(false);
 
+  // Dynamic visual viewport state for mobile keyboards
+  const [viewportStyles, setViewportStyles] = useState({
+    height: '100dvh',
+    top: '0px'
+  });
+
+  useEffect(() => {
+    const updateViewport = () => {
+      if (window.visualViewport) {
+        setViewportStyles({
+          height: `${window.visualViewport.height}px`,
+          top: `${window.visualViewport.offsetTop}px`
+        });
+      }
+    };
+
+    window.visualViewport?.addEventListener('resize', updateViewport);
+    window.visualViewport?.addEventListener('scroll', updateViewport);
+    window.addEventListener('resize', updateViewport);
+
+    updateViewport();
+
+    return () => {
+      window.visualViewport?.removeEventListener('resize', updateViewport);
+      window.visualViewport?.removeEventListener('scroll', updateViewport);
+      window.removeEventListener('resize', updateViewport);
+    };
+  }, []);
+
   const messageStreamRef = useRef<HTMLDivElement>(null);
 
   // Scroll to bottom helper
@@ -200,7 +229,10 @@ export const ChatWorkspace: React.FC = () => {
   return (
     <div className={`glass-panel animate-fade-in ${activePartner ? 'has-active-partner' : ''}`} style={{
       display: 'flex',
-      height: '100dvh',
+      height: viewportStyles.height,
+      top: viewportStyles.top,
+      position: 'fixed',
+      left: 0,
       width: '100dvw',
       overflow: 'hidden',
       borderRadius: 0,
