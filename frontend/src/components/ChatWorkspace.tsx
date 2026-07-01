@@ -52,11 +52,17 @@ export const ChatWorkspace: React.FC = () => {
   const [settingsError, setSettingsError] = useState<string | null>(null);
   const [settingsSuccess, setSettingsSuccess] = useState(false);
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messageStreamRef = useRef<HTMLDivElement>(null);
 
   // Scroll to bottom helper
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messageStreamRef.current) {
+      const container = messageStreamRef.current;
+      container.scrollTop = container.scrollHeight;
+      setTimeout(() => {
+        container.scrollTop = container.scrollHeight;
+      }, 50);
+    }
   };
 
   const fetchBlocked = async () => {
@@ -194,8 +200,8 @@ export const ChatWorkspace: React.FC = () => {
   return (
     <div className={`glass-panel animate-fade-in ${activePartner ? 'has-active-partner' : ''}`} style={{
       display: 'flex',
-      height: '100vh',
-      width: '100vw',
+      height: '100dvh',
+      width: '100dvw',
       overflow: 'hidden',
       borderRadius: 0,
       border: 'none'
@@ -657,7 +663,7 @@ export const ChatWorkspace: React.FC = () => {
             })()}
 
             {/* Message Stream */}
-            <div className="message-stream" style={{
+            <div className="message-stream" ref={messageStreamRef} style={{
               flex: 1,
               overflowY: 'auto',
               padding: '24px',
@@ -719,7 +725,6 @@ export const ChatWorkspace: React.FC = () => {
                   );
                 })
               )}
-              <div ref={messagesEndRef} />
             </div>
 
             {/* Composer */}
