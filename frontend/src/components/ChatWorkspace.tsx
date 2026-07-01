@@ -12,18 +12,35 @@ import {
   Check, 
   X, 
   Wifi, 
-  WifiOff 
+  WifiOff,
+  ArrowLeft,
+  ShieldAlert
 } from 'lucide-react';
 
 export const ChatWorkspace: React.FC = () => {
   const { user, logout, updateProfile } = useAuth();
-  const { isConnected, messages, contacts, activePartner, setActivePartner, sendMessage, addContact } = useWebSocket();
+  const { 
+    isConnected, 
+    messages, 
+    contacts, 
+    activePartner, 
+    setActivePartner, 
+    sendMessage, 
+    addContact,
+    removeContact,
+    syncContacts
+  } = useWebSocket();
 
   // Local UI states
   const [typedMessage, setTypedMessage] = useState('');
   const [copiedId, setCopiedId] = useState(false);
+  const [copiedPartnerEmail, setCopiedPartnerEmail] = useState(false);
   const [showAddContact, setShowAddContact] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  
+  // Tab and blocked users state
+  const [activeTab, setActiveTab] = useState<'chats' | 'blocked'>('chats');
+  const [blockedUsers, setBlockedUsers] = useState<any[]>([]);
 
   // Form states for adding contact
   const [newContactEmail, setNewContactEmail] = useState('');
@@ -42,22 +59,65 @@ export const ChatWorkspace: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const fetchBlocked = async () => {
+    try {
+      const response = await api.get('/v1/contacts/blocked');
+      setBlockedUsers(response.data);
+    } catch (err) {
+      console.error('Failed to fetch blocked users:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'blocked') {
+      fetchBlocked();
+    }
+  }, [activeTab]);
+
   useEffect(() => {
     scrollToBottom();
   }, [messages, activePartner]);
 
   const handleCopyId = () => {
-    if (user?.id) {
-      navigator.clipboard.writeText(user.id);
+    if (user?.email) {
+      navigator.clipboard.writeText(user.email);
       setCopiedId(true);
       setTimeout(() => setCopiedId(false), 2000);
     }
   };
 
   const handleCopyPartnerId = () => {
-    if (activePartner?.id) {
-      navigator.clipboard.writeText(activePartner.id);
-      // Optional: add UI notice
+    if (activePartner?.email) {
+      navigator.clipboard.writeText(activePartner.email);
+      setCopiedPartnerEmail(true);
+      setTimeout(() => setCopiedPartnerEmail(false), 2000);
+    }
+  };
+
+  const handleBlock = async (targetId: string) => {
+    try {
+      await api.post('/v1/contacts/block', { targetId });
+      removeContact(targetId);
+      if (activePartner?.id === targetId) {
+        setActivePartner(null);
+      }
+      await syncContacts();
+      if (activeTab === 'blocked') {
+        fetchBlocked();
+      }
+    } catch (err) {
+      console.error('Failed to block user:', err);
+    }
+  };
+
+  const handleUnblock = async (targetId: string) => {
+    try {
+      await api.post('/v1/contacts/unblock', { targetId });
+      setBlockedUsers((prev) => prev.filter((u) => u.id !== targetId));
+      setActiveTab('chats');
+      await syncContacts();
+    } catch (err) {
+      console.error('Failed to unblock user:', err);
     }
   };
 
@@ -132,7 +192,7 @@ export const ChatWorkspace: React.FC = () => {
   };
 
   return (
-    <div className="glass-panel animate-fade-in" style={{
+    <div className={`glass-panel animate-fade-in ${activePartner ? 'has-active-partner' : ''}`} style={{
       display: 'flex',
       height: '100vh',
       width: '100vw',
@@ -142,8 +202,7 @@ export const ChatWorkspace: React.FC = () => {
     }}>
       
       {/* Sidebar */}
-      <div style={{
-        width: '320px',
+      <div className="sidebar-pane" style={{
         borderRight: '1px solid var(--panel-border)',
         display: 'flex',
         flexDirection: 'column',
@@ -241,7 +300,7 @@ export const ChatWorkspace: React.FC = () => {
             border: '1px solid rgba(255,255,255,0.03)'
           }}>
             <span style={{ fontSize: '11px', color: 'var(--slate-400)', fontFamily: 'monospace', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', width: '200px' }}>
-              My ID: {user?.id}
+              My Email: {user?.email}
             </span>
             <button 
               onClick={handleCopyId}
@@ -259,130 +318,223 @@ export const ChatWorkspace: React.FC = () => {
           </div>
         </div>
 
-        {/* Contacts Section */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '16px 20px 8px 20px'
-        }}>
-          <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--slate-400)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Chats</span>
+        {/* Tab Switcher */}
+        <div className="sidebar-tabs">
           <button 
-            onClick={() => setShowAddContact(true)}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: 'var(--primary)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              fontSize: '13px',
-              fontWeight: '600'
-            }}
+            className={`sidebar-tab ${activeTab === 'chats' ? 'active' : ''}`}
+            onClick={() => setActiveTab('chats')}
           >
-            <UserPlus size={16} />
-            <span>Add</span>
+            Chats
+          </button>
+          <button 
+            className={`sidebar-tab ${activeTab === 'blocked' ? 'active' : ''}`}
+            onClick={() => setActiveTab('blocked')}
+          >
+            Blocked
           </button>
         </div>
 
-        {/* Contact List */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '0 10px 20px 10px' }}>
-          {contacts.length === 0 ? (
+        {activeTab === 'chats' ? (
+          <>
+            {/* Contacts Section */}
             <div style={{
-              textAlign: 'center',
-              padding: '40px 20px',
-              color: 'var(--slate-400)',
-              fontSize: '13px',
               display: 'flex',
-              flexDirection: 'column',
               alignItems: 'center',
-              gap: '12px'
+              justifyContent: 'space-between',
+              padding: '16px 20px 8px 20px'
             }}>
-              <MessageSquare size={32} style={{ opacity: 0.3 }} />
-              <span>No active chats. Click Add to connect with a user by ID.</span>
+              <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--slate-400)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Chats</span>
+              <button 
+                onClick={() => setShowAddContact(true)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--primary)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  fontSize: '13px',
+                  fontWeight: '600'
+                }}
+              >
+                <UserPlus size={16} />
+                <span>Add</span>
+              </button>
             </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              {contacts.map((contact) => {
-                const isSelected = activePartner?.id === contact.id;
-                const thread = messages[contact.id] || [];
-                const lastMsg = thread[thread.length - 1];
-                
-                return (
-                  <div
-                    key={contact.id}
-                    onClick={() => setActivePartner(contact)}
-                    style={{
-                      padding: '12px 14px',
-                      borderRadius: '10px',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      backgroundColor: isSelected ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
-                      border: isSelected ? '1px solid rgba(99, 102, 241, 0.3)' : '1px solid transparent',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px'
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!isSelected) {
-                        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.03)';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isSelected) {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                      }
-                    }}
-                  >
-                    <div style={{
-                      width: '36px',
-                      height: '36px',
-                      borderRadius: '50%',
-                      backgroundColor: isSelected ? 'var(--primary)' : 'var(--slate-800)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontWeight: '700',
-                      fontSize: '13px'
-                    }}>
-                      {(contact.username || '').substring(0, 2).toUpperCase()}
-                    </div>
-                    <div style={{ flex: 1, overflow: 'hidden' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontWeight: '600', fontSize: '14px', color: isSelected ? 'white' : 'var(--slate-200)' }}>
-                          {contact.username}
-                        </span>
-                        {lastMsg && (
-                          <span style={{ fontSize: '10px', color: 'var(--slate-400)' }}>
-                            {new Date(lastMsg.createdAt).toLocaleDateString() === new Date().toLocaleDateString() 
-                              ? formatTime(lastMsg.createdAt)
-                              : new Date(lastMsg.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
-                          </span>
-                        )}
+
+            {/* Contact List */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '0 10px 20px 10px' }}>
+              {contacts.length === 0 ? (
+                <div style={{
+                  textAlign: 'center',
+                  padding: '40px 20px',
+                  color: 'var(--slate-400)',
+                  fontSize: '13px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '12px'
+                }}>
+                  <MessageSquare size={32} style={{ opacity: 0.3 }} />
+                  <span>No active chats. Click Add to connect with a user by email.</span>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {contacts.map((contact) => {
+                    const isSelected = activePartner?.id === contact.id;
+                    const thread = messages[contact.id] || [];
+                    const lastMsg = thread[thread.length - 1];
+                    
+                    return (
+                      <div
+                        key={contact.id}
+                        onClick={() => setActivePartner(contact)}
+                        style={{
+                          padding: '12px 14px',
+                          borderRadius: '10px',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          backgroundColor: isSelected ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
+                          border: isSelected ? '1px solid rgba(99, 102, 241, 0.3)' : '1px solid transparent',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isSelected) {
+                            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.03)';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isSelected) {
+                            e.currentTarget.style.backgroundColor = 'transparent';
+                          }
+                        }}
+                      >
+                        <div style={{
+                          width: '36px',
+                          height: '36px',
+                          borderRadius: '50%',
+                          backgroundColor: isSelected ? 'var(--primary)' : 'var(--slate-800)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: '700',
+                          fontSize: '13px'
+                        }}>
+                          {(contact.username || '').substring(0, 2).toUpperCase()}
+                        </div>
+                        <div style={{ flex: 1, overflow: 'hidden' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontWeight: '600', fontSize: '14px', color: isSelected ? 'white' : 'var(--slate-200)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              {contact.username}
+                              {contact.isPending && (
+                                <span style={{
+                                  fontSize: '9px',
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                                  color: '#fca5a5',
+                                  fontWeight: '700',
+                                  textTransform: 'uppercase'
+                                }}>
+                                  Pending
+                                </span>
+                              )}
+                            </span>
+                            {lastMsg && (
+                              <span style={{ fontSize: '10px', color: 'var(--slate-400)' }}>
+                                {new Date(lastMsg.createdAt).toLocaleDateString() === new Date().toLocaleDateString() 
+                                  ? formatTime(lastMsg.createdAt)
+                                  : new Date(lastMsg.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                              </span>
+                            )}
+                          </div>
+                          <div style={{
+                            fontSize: '12px',
+                            color: 'var(--slate-400)',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            marginTop: '2px'
+                          }}>
+                            {lastMsg ? lastMsg.content : 'Start a conversation'}
+                          </div>
+                        </div>
                       </div>
-                      <div style={{
-                        fontSize: '12px',
-                        color: 'var(--slate-400)',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        marginTop: '2px'
-                      }}>
-                        {lastMsg ? lastMsg.content : 'Start a conversation'}
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          /* Blocked List View */
+          <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px 20px 20px' }}>
+            <h3 style={{ fontSize: '12px', fontWeight: '700', color: 'var(--slate-400)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '16px' }}>
+              Blocked Users
+            </h3>
+            {blockedUsers.length === 0 ? (
+              <div style={{
+                textAlign: 'center',
+                padding: '40px 20px',
+                color: 'var(--slate-400)',
+                fontSize: '13px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '12px'
+              }}>
+                <MessageSquare size={32} style={{ opacity: 0.3 }} />
+                <span>No blocked users.</span>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {blockedUsers.map((b) => (
+                  <div key={b.id} style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px',
+                    borderRadius: '8px',
+                    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                    border: '1px solid var(--panel-border)',
+                    gap: '12px'
+                  }}>
+                    <div style={{ overflow: 'hidden', flex: 1 }}>
+                      <div style={{ fontWeight: '600', fontSize: '14px', color: 'white', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                        {b.username}
+                      </div>
+                      <div style={{ fontSize: '11px', color: 'var(--slate-400)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                        {b.email}
                       </div>
                     </div>
+                    <button
+                      onClick={() => handleUnblock(b.id)}
+                      className="glass-button"
+                      style={{ 
+                        padding: '6px 12px', 
+                        fontSize: '12px', 
+                        backgroundColor: 'rgba(255, 255, 255, 0.05)', 
+                        color: 'white', 
+                        border: '1px solid var(--panel-border)',
+                        borderRadius: '6px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Unblock
+                    </button>
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Chat Window */}
-      <div style={{
-        flex: 1,
+      <div className="chat-pane" style={{
         display: 'flex',
         flexDirection: 'column',
         backgroundColor: 'rgba(11, 15, 25, 0.2)'
@@ -398,31 +550,112 @@ export const ChatWorkspace: React.FC = () => {
               justifyContent: 'space-between',
               backgroundColor: 'rgba(15, 23, 42, 0.2)'
             }}>
-              <div>
-                <h3 style={{ fontSize: '16px', fontWeight: '700' }}>{activePartner.username}</h3>
-                <span style={{ fontSize: '12px', color: 'var(--slate-400)' }}>{activePartner.email}</span>
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <button 
+                  className="back-button"
+                  onClick={() => setActivePartner(null)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--slate-400)',
+                    cursor: 'pointer',
+                    marginRight: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '4px'
+                  }}
+                >
+                  <ArrowLeft size={20} />
+                </button>
+                <div>
+                  <h3 style={{ fontSize: '16px', fontWeight: '700' }}>{activePartner.username}</h3>
+                  <span style={{ fontSize: '12px', color: 'var(--slate-400)' }}>{activePartner.email}</span>
+                </div>
               </div>
-              <div 
-                onClick={handleCopyPartnerId}
-                style={{
-                  backgroundColor: 'rgba(255,255,255,0.03)',
-                  border: '1px solid var(--panel-border)',
-                  borderRadius: '6px',
-                  padding: '6px 12px',
-                  fontSize: '11px',
-                  color: 'var(--slate-400)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  fontFamily: 'monospace'
-                }}
-                title="Copy User ID"
-              >
-                <span>ID: {activePartner.id.substring(0, 8)}...</span>
-                <Copy size={12} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div 
+                  onClick={handleCopyPartnerId}
+                  style={{
+                    backgroundColor: 'rgba(255,255,255,0.03)',
+                    border: '1px solid var(--panel-border)',
+                    borderRadius: '6px',
+                    padding: '6px 12px',
+                    fontSize: '11px',
+                    color: 'var(--slate-400)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontFamily: 'monospace'
+                  }}
+                  title="Copy Email"
+                >
+                  <span>Email: {activePartner.email}</span>
+                  {copiedPartnerEmail ? <Check size={12} style={{ color: 'var(--success)' }} /> : <Copy size={12} />}
+                </div>
+                <button
+                  onClick={() => handleBlock(activePartner.id)}
+                  className="glass-button"
+                  style={{ 
+                    padding: '6px 12px', 
+                    fontSize: '11px', 
+                    backgroundColor: 'rgba(239, 68, 68, 0.15)', 
+                    color: '#fca5a5', 
+                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                  title="Block User"
+                >
+                  Block
+                </button>
               </div>
             </div>
+
+            {/* Pending Friend Request/Block Action Banner */}
+            {(() => {
+              const activeContact = contacts.find(c => c.id === activePartner.id) || activePartner;
+              if (!activeContact.isPending) return null;
+              return (
+                <div style={{
+                  padding: '12px 24px',
+                  backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                  borderBottom: '1px solid rgba(239, 68, 68, 0.2)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '16px',
+                  flexWrap: 'wrap'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <ShieldAlert size={16} style={{ color: 'var(--error)' }} />
+                    <span style={{ fontSize: '13px', color: 'var(--slate-200)' }}>
+                      This sender is not in your contacts list. Do you want to add them or block them?
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      onClick={() => addContact(activeContact.id, activeContact.username, activeContact.email)}
+                      className="glass-button"
+                      style={{ padding: '6px 12px', fontSize: '12px', backgroundColor: 'var(--success)', borderRadius: '6px', cursor: 'pointer' }}
+                    >
+                      Add as Friend
+                    </button>
+                    <button
+                      onClick={() => handleBlock(activeContact.id)}
+                      className="glass-button"
+                      style={{ padding: '6px 12px', fontSize: '12px', backgroundColor: 'var(--error)', borderRadius: '6px', cursor: 'pointer' }}
+                    >
+                      Block
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Message Stream */}
             <div style={{

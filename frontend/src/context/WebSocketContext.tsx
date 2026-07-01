@@ -17,6 +17,7 @@ export interface Contact {
   username: string;
   email: string;
   lastMessageAt?: string;
+  isPending?: boolean;
 }
 
 interface WebSocketContextType {
@@ -27,6 +28,8 @@ interface WebSocketContextType {
   setActivePartner: (contact: Contact | null) => void;
   sendMessage: (receiverId: string, content: string) => void;
   addContact: (id: string, username: string, email: string) => void;
+  removeContact: (id: string) => void;
+  syncContacts: () => Promise<void>;
 }
 
 const WebSocketContext = createContext<WebSocketContextType | undefined>(undefined);
@@ -64,6 +67,41 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
       localStorage.setItem(`chat_messages_${user.id}`, JSON.stringify(messages));
     }
   }, [messages, user]);
+
+  const syncContacts = async () => {
+    if (!user || !token) return;
+    try {
+      const response = await api.get('/v1/contacts');
+      const dbContacts: Contact[] = response.data;
+
+      setContacts((prev) => {
+        const merged = [...dbContacts];
+        // Preserve local storage order/timestamps
+        for (const local of prev) {
+          const match = merged.find((c) => c.id === local.id);
+          if (match) {
+            if (local.lastMessageAt && (!match.lastMessageAt || new Date(local.lastMessageAt) > new Date(match.lastMessageAt))) {
+              match.lastMessageAt = local.lastMessageAt;
+            }
+          }
+        }
+        // Sort by latest messages
+        merged.sort((a, b) => {
+          if (!a.lastMessageAt) return 1;
+          if (!b.lastMessageAt) return -1;
+          return new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime();
+        });
+        return merged;
+      });
+    } catch (err) {
+      console.error('Failed to sync contacts from API:', err);
+    }
+  };
+
+  // Sync contacts from the backend REST API on load/re-auth
+  useEffect(() => {
+    syncContacts();
+  }, [user, token]);
 
   // Fetch message history from the backend when activePartner changes (on-demand loading)
   useEffect(() => {
@@ -155,7 +193,6 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
             };
           });
 
-          // Update contacts lastMessageAt and order
           setContacts((prev) => {
             const index = prev.findIndex((c) => c.id === partnerId);
             if (index !== -1) {
@@ -164,8 +201,17 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
               // Move to top
               const [item] = updated.splice(index, 1);
               return [item, ...updated];
+            } else {
+              // Sender is not in contacts list. Add as a pending contact.
+              const newPendingContact: Contact = {
+                id: partnerId,
+                username: (data as any).sender_username || "Unknown Sender",
+                email: (data as any).sender_email || "unknown@example.com",
+                lastMessageAt: incomingMessage.createdAt,
+                isPending: true
+              };
+              return [newPendingContact, ...prev];
             }
-            return prev;
           });
         }
       } catch (err) {
@@ -263,9 +309,27 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
 
   const addContact = (id: string, username: string, email: string) => {
     setContacts((prev) => {
-      if (prev.some((c) => c.id === id)) return prev;
+      const existingIndex = prev.findIndex((c) => c.id === id);
+      if (existingIndex !== -1) {
+        // If contact exists but is pending, mark it as friend (not pending)
+        if (prev[existingIndex].isPending) {
+          const updated = [...prev];
+          updated[existingIndex] = { ...updated[existingIndex], isPending: false };
+          return updated;
+        }
+        return prev;
+      }
       return [{ id, username, email }, ...prev];
     });
+
+    // Persist friendship relationship in database
+    api.post('/v1/contacts/add', { targetId: id }).catch((err) => {
+      console.error('Failed to persist contact relationship in DB:', err);
+    });
+  };
+
+  const removeContact = (id: string) => {
+    setContacts((prev) => prev.filter((c) => c.id !== id));
   };
 
   const setActivePartner = (partner: Contact | null) => {
@@ -285,6 +349,8 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
         setActivePartner,
         sendMessage,
         addContact,
+        removeContact,
+        syncContacts,
       }}
     >
       {children}

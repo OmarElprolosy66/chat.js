@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import UserService from "../services/user.service";
 import MessageService from "../services/message.service";
+import ContactsRepository from "../repositories/drizzle/contacts.repository";
 import ConnectionManager, { WS } from "./ConnectionManager";
 import { CreateMessageDTO } from "../../db/DTOs/message.dto";
 import { CreateMessageSchema } from "../../db/validators";
@@ -15,6 +16,7 @@ export class WebSocketController {
         private connectionManager: ConnectionManager,
         private userService: UserService,
         private messageService: MessageService,
+        private contactsRepo: ContactsRepository,
     ) { }
 
     private server!: Server;
@@ -83,13 +85,29 @@ export class WebSocketController {
                     ws.send(JSON.stringify({ error: "Invalid message format", details: result.error.message }));
                     return;
                 }
-                
+
+                // Check if receiver blocked sender
+                const isBlocked = await this.contactsRepo.isBlocked(userId, result.data.receiver_id);
+                if (isBlocked) {
+                    console.warn(`WebSocket message blocked: Receiver ${result.data.receiver_id} has blocked Sender ${userId}.`);
+                    ws.send(JSON.stringify({ error: "Message blocked", details: "You are blocked by this user." }));
+                    return;
+                }
+
                 const createdMessage = await this.messageService.createMessage(result.data);
                 
+                // Fetch sender details to assist receiver in dynamically adding unadded senders
+                const senderUser = await this.userService.getUserById(userId);
+
                 // Broadcast the newly created message to the receiver if they are online
                 const receiverSockets = this.connectionManager.getSockets(createdMessage.receiver_id);
                 if (receiverSockets.length > 0) {
-                    this.connectionManager.broadcastToUser(receiverSockets, createdMessage);
+                    const broadcastPayload = {
+                        ...createdMessage,
+                        sender_username: senderUser?.username || "Unknown",
+                        sender_email: senderUser?.email || ""
+                    };
+                    this.connectionManager.broadcastToUser(receiverSockets, broadcastPayload);
                 }
             } catch (error) {
                 console.error('Error processing WebSocket message:', error);

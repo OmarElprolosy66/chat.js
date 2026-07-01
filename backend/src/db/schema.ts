@@ -57,6 +57,8 @@ export const contactsSchema = pgTable('contacts', {
         .defaultNow()
         .notNull(),
     isFavorite: boolean('is_favorite').default(false).notNull(),
+    blockedBy: uuid('blocked_by')
+        .references(() => userSchema.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
 }, table => [
     primaryKey({ columns: [table.user_id, table.other_id] }),
     check('user_id_lt_other_id', sql`${table.user_id} < ${table.other_id}`),
