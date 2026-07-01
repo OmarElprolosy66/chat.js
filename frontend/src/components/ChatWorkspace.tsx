@@ -738,6 +738,7 @@ export const ChatWorkspace: React.FC = () => {
                 placeholder="Type your message..."
                 value={typedMessage}
                 onChange={(e) => setTypedMessage(e.target.value)}
+                onBlur={() => window.scrollTo(0, 0)}
               />
               <button 
                 type="submit" 

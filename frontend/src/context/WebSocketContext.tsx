@@ -155,6 +155,29 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
     };
   }, [user, token]);
 
+  // Reconnect immediately when tab becomes visible
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        if (!socketRef.current || socketRef.current.readyState !== 1) {
+          reconnectAttemptsRef.current = 0;
+          if (reconnectTimeoutRef.current) {
+            clearTimeout(reconnectTimeoutRef.current);
+            reconnectTimeoutRef.current = null;
+          }
+          if (user && token) {
+            connect();
+          }
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [user, token]);
+
   const connect = () => {
     if (socketRef.current) return;
 
