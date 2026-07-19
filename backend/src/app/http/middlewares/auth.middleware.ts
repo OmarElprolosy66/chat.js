@@ -6,7 +6,7 @@ import { NextFunction, Request, Response } from "express";
  */
 export const isOwnerGuard = (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) {
-        // This should technically be caught by authenticateJWT first, but it's good practice.
+        // This should technically be caught by authenticateJWT first, but for safety, we check here as well.
         return res.status(401).json({ message: "Unauthorized: User not authenticated" });
     }
 

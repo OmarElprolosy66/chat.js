@@ -51,7 +51,7 @@ export class WebSocketController {
             const searchParams = new URL(req.url as string, `http://${req.headers.host}`).searchParams;
             const token = searchParams.get('token');
             
-            if (!token || !this.validateToken(token, req)) { // Check for token and validate it
+            if (!token || !this.validateToken(token, req)) {
                 console.warn('WebSocket connection rejected: Invalid or missing token.');
                 socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
                 socket.destroy();

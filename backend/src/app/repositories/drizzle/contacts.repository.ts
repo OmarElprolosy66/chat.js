@@ -4,7 +4,7 @@ import { eq, and, or, sql, ne, exists } from "drizzle-orm";
 
 export class ContactsRepository {
     async getContactsAndConversations(userId: string): Promise<any[]> {
-        // 1. Fetch all unique users who have exchanged messages with this user OR are marked as friends
+        // Fetch all unique users who have exchanged messages with this user OR are marked as friends
         const users = await db
             .select({
                 id: userSchema.id,
