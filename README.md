@@ -266,3 +266,22 @@ The codebase utilizes Vitest for testing. The execution commands are configured 
   ```bash
   npm run test:watch
   ```
+
+---
+
+## Frontend Client
+
+The frontend is a dynamic Single Page Application (SPA) client built using React, TypeScript, and Vite. It provides a real-time messaging interface with full mobile viewport adjustments.
+
+Key features:
+- Core WebSocket communication with auto-reconnect on visibility states.
+- Mobile browser layout alignment using the Visual Viewport API.
+- Dynamic contact directories, and active user blocking.
+
+For instructions on setting up and running the client, see the [Frontend README](file:///e:/chat.js/frontend/README.md).
+
+---
+
+## License
+
+This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](./LICENSE) file for details.
