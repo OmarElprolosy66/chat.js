@@ -6,7 +6,7 @@ export class MessageController {
 
     async getConversation(req: Request, res: Response, next: NextFunction) {
         try {
-            const partnerId = req.params.partnerId;
+            const partnerId = req.params.partnerId as string;
             const currentUserId = (req as any).user.user_id;
 
             if (!partnerId) {

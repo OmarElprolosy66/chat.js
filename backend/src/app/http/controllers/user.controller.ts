@@ -7,7 +7,8 @@ export class UserController {
 
     async getById(req: Request, res: Response, next: NextFunction) {
         try {
-            const id   = req.params.id;
+            const id   = req.params.id as string;
+            if (!id) return res.status(400).json({ message: "User ID is required" });
             const user = await this.userService.getUserById(id);
             if (!user) return res.sendStatus(404);
             return res.json(user);
@@ -16,7 +17,8 @@ export class UserController {
 
     async update(req: Request, res: Response, next: NextFunction) {
         try {
-            const id  = req.params.id;
+            const id  = req.params.id as string;
+            if (!id) return res.status(400).json({ message: "User ID is required" });
             const dto = req.body as UpdateUserDTO;
             const updated = await this.userService.updateUser(id, dto);
             if (!updated) return res.sendStatus(404);
@@ -26,7 +28,8 @@ export class UserController {
 
     async delete(req: Request, res: Response, next: NextFunction) {
         try {
-            const id = req.params.id;
+            const id = req.params.id as string;
+            if (!id) return res.status(400).json({ message: "User ID is required" });
             await this.userService.deleteUser(id);
             return res.sendStatus(204);
         } catch (err) { next(err); }
