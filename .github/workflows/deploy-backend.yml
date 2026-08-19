@@ -1,0 +1,110 @@
+name: Deploy Backend to MonsterASP
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "backend/**"
+
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    name: Build and deploy backend
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      # ---------------------------------------------
+      # 1. Get the repository
+      # ---------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ---------------------------------------------
+      # 2. Install Node.js
+      # ---------------------------------------------
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      # ---------------------------------------------
+      # 3. Install dependencies
+      # ---------------------------------------------
+      - name: Install dependencies
+        run: npm ci
+
+      # ---------------------------------------------
+      # 4. Build TypeScript
+      # ---------------------------------------------
+      - name: Build backend
+        run: npm run build
+
+      # ---------------------------------------------
+      # 5. Replace node_modules with production-only
+      # dependencies.
+      #
+      # This removes TypeScript, Vitest, tsx, etc.
+      # and keeps Express, bcrypt, pg, drizzle, etc.
+      # ---------------------------------------------
+      - name: Install production dependencies
+        run: npm ci --omit=dev
+
+      # ---------------------------------------------
+      # 6. Create a clean deployment directory
+      # ---------------------------------------------
+      - name: Prepare deployment files
+        shell: pwsh
+        run: |
+          $deploy = "$env:GITHUB_WORKSPACE\deployment"
+
+          if (Test-Path $deploy) {
+            Remove-Item $deploy -Recurse -Force
+          }
+
+          New-Item -ItemType Directory -Path $deploy | Out-Null
+
+          # Compiled backend
+          Copy-Item "dist" "$deploy\dist" -Recurse
+
+          # Production dependencies
+          Copy-Item "node_modules" "$deploy\node_modules" -Recurse
+
+          # Runtime configuration
+          Copy-Item "package.json" "$deploy\package.json"
+
+          if (Test-Path "package-lock.json") {
+            Copy-Item "package-lock.json" "$deploy\package-lock.json"
+          }
+
+          # IIS / MonsterASP configuration
+          if (Test-Path "web.config") {
+            Copy-Item "web.config" "$deploy\web.config"
+          }
+          else {
+            Write-Error "backend/web.config was not found!"
+          }
+
+          Write-Host ""
+          Write-Host "Deployment directory:"
+          Get-ChildItem $deploy
+
+      # ---------------------------------------------
+      # 7. Deploy ONLY deployment/
+      # to MonsterASP /wwwroot
+      # ---------------------------------------------
+      - name: Deploy to MonsterASP
+        uses: rasmusbuchholdt/simply-web-deploy@2.2.0
+        with:
+          website-name: ${{ secrets.WEBSITE_NAME }}
+          server-computer-name: ${{ secrets.SERVER_COMPUTER_NAME }}
+          server-username: ${{ secrets.SERVER_USERNAME }}
+          server-password: ${{ secrets.SERVER_PASSWORD }}
+          source-path: '\deployment\'
