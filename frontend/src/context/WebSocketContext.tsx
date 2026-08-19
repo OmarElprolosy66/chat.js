@@ -295,7 +295,8 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
     const payload = {
       receiver_id: receiverId,
       content,
-    };
+      status: "sent"
+    } as Message;
 
     socketRef.current.send(JSON.stringify(payload));
 
