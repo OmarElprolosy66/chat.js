@@ -96,6 +96,18 @@ jobs:
           Write-Host "Deployment directory:"
           Get-ChildItem $deploy
 
+      - name: Check WebDeploy configuration
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace("${{ secrets.SERVER_COMPUTER_NAME }}")) {
+            Write-Error "SERVER_COMPUTER_NAME is EMPTY!"
+          }
+
+          if ([string]::IsNullOrWhiteSpace("${{ secrets.WEBSITE_NAME }}")) {
+            Write-Error "WEBSITE_NAME is EMPTY!"
+          }
+
+          Write-Host "WebDeploy configuration exists."
       # ---------------------------------------------
       # 7. Deploy ONLY deployment/
       # to MonsterASP /wwwroot
