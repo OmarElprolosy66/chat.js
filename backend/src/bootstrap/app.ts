@@ -1,7 +1,6 @@
 import dotenv from "dotenv";
 dotenv.config();
 import express from "express";
-import http from 'http';
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import cors from "cors";
@@ -35,4 +34,4 @@ app.use((req: any, _res, next) => {
 app.use("/api", routes);
 app.use(err);
 
-export default app;
+export default app;
